@@ -157,7 +157,7 @@ type Handler struct {
 	// If body buffering is enabled, the maximum size of the buffers
 	// used for the requests and responses (in bytes).
 	MaxBufferSize int64 `json:"max_buffer_size,omitempty"`
-	
+
 	// If nonzero, streaming requests such as WebSockets will be
 	// forcibly closed at the end of the timeout. Default: no timeout.
 	StreamTimeout caddy.Duration `json:"stream_timeout,omitempty"`
@@ -1147,7 +1147,7 @@ func (h Handler) provisionUpstream(upstream *Upstream) {
 // the return value when done with it, just like if it was the original body! If limit is 0
 // (which it shouldn't be), this function returns its input; i.e. is a no-op, for safety.
 func (h Handler) bufferedBody(originalBody io.ReadCloser) (io.ReadCloser, int64) {
-	if MaxBufferSize == 0 {
+	if h.MaxBufferSize == 0 {
 		return originalBody, 0
 	}
 	var written int64
