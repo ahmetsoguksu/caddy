@@ -602,7 +602,7 @@ func (h Handler) prepareRequest(req *http.Request, repl *caddy.Replacer) (*http.
 	// set, and if body size is limited
 	if h.RequestBuffers != 0 && req.Body != nil {
 		var readBytes int64
-		req.Body, readBytes = h.bufferedBody(req.Body, h.RequestBuffers)
+		req.Body, readBytes = h.bufferedBody(req.Body)
 		if h.RequestBuffers == -1 {
 			req.ContentLength = readBytes
 			req.Header.Set("Content-Length", strconv.FormatInt(req.ContentLength, 10))
