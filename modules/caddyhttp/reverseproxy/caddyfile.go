@@ -632,32 +632,32 @@ func (h *Handler) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				}
 				h.FlushInterval = caddy.Duration(dur)
 			}
+			
+		case "buffer_requests":
+			if d.NextArg() {
+				return d.ArgErr()
+			}
+			h.BufferRequests = true
+		
+		case "buffer_responses":
+			if d.NextArg() {
+				return d.ArgErr()
+			}
+			h.BufferResponses = true
 
-		case "request_buffers", "response_buffers":
-			subdir := d.Val()
+		case "max_buffer_size":
 			if !d.NextArg() {
 				return d.ArgErr()
 			}
-			val := d.Val()
-			var size int64
-			if val == "unlimited" {
-				size = -1
-			} else {
-				usize, err := humanize.ParseBytes(val)
-				if err != nil {
-					return d.Errf("invalid byte size '%s': %v", val, err)
-				}
-				size = int64(usize)
+			size, err := humanize.ParseBytes(d.Val())
+			if err != nil {
+				return d.Errf("invalid byte size '%s': %v", d.Val(), err)
 			}
 			if d.NextArg() {
 				return d.ArgErr()
 			}
-			if subdir == "request_buffers" {
-				h.RequestBuffers = size
-			} else if subdir == "response_buffers" {
-				h.ResponseBuffers = size
-			}
-
+			h.MaxBufferSize = int64(size)
+			
 		case "stream_timeout":
 			if !d.NextArg() {
 				return d.ArgErr()
