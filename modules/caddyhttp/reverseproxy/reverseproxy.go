@@ -142,6 +142,22 @@ type Handler struct {
 	// could be useful if the backend has tighter memory constraints.
 	ResponseBuffers int64 `json:"response_buffers,omitempty"`
 
+	// If true, the entire request body will be read and buffered
+	// in memory before being proxied to the backend. This should
+	// be avoided if at all possible for performance reasons, but
+	// could be useful if the backend is intolerant of read latency.
+	BufferRequests bool `json:"buffer_requests,omitempty"`
+
+	// If true, the entire response body will be read and buffered
+	// in memory before being proxied to the client. This should
+	// be avoided if at all possible for performance reasons, but
+	// could be useful if the backend has tighter memory constraints.
+	BufferResponses bool `json:"buffer_responses,omitempty"`
+
+	// If body buffering is enabled, the maximum size of the buffers
+	// used for the requests and responses (in bytes).
+	MaxBufferSize int64 `json:"max_buffer_size,omitempty"`
+	
 	// If nonzero, streaming requests such as WebSockets will be
 	// forcibly closed at the end of the timeout. Default: no timeout.
 	StreamTimeout caddy.Duration `json:"stream_timeout,omitempty"`
@@ -844,8 +860,8 @@ func (h *Handler) reverseProxy(rw http.ResponseWriter, req *http.Request, origRe
 	}
 
 	// if enabled, buffer the response body
-	if h.ResponseBuffers != 0 {
-		res.Body, _ = h.bufferedBody(res.Body, h.ResponseBuffers)
+	if h.BufferResponses {
+		res.Body, _ = h.bufferedBody(res.Body)
 	}
 
 	// see if any response handler is configured for this response from the backend
@@ -1130,16 +1146,16 @@ func (h Handler) provisionUpstream(upstream *Upstream) {
 // then returns a reader for the buffer along with how many bytes were buffered. Always close
 // the return value when done with it, just like if it was the original body! If limit is 0
 // (which it shouldn't be), this function returns its input; i.e. is a no-op, for safety.
-func (h Handler) bufferedBody(originalBody io.ReadCloser, limit int64) (io.ReadCloser, int64) {
-	if limit == 0 {
+func (h Handler) bufferedBody(originalBody io.ReadCloser) (io.ReadCloser, int64) {
+	if MaxBufferSize == 0 {
 		return originalBody, 0
 	}
 	var written int64
 	buf := bufPool.Get().(*bytes.Buffer)
 	buf.Reset()
-	if limit > 0 {
-		n, err := io.CopyN(buf, originalBody, limit)
-		if (err != nil && err != io.EOF) || n == limit {
+	if h.MaxBufferSize > 0 {
+		n, err := io.CopyN(buf, originalBody, h.MaxBufferSize)
+		if err != nil || n == h.MaxBufferSize {
 			return bodyReadCloser{
 				Reader: io.MultiReader(buf, originalBody),
 				buf:    buf,
